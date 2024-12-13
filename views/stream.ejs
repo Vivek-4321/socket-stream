@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Stream</title>
+    <style>
+        video {
+            width: 640px;
+            height: 480px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Webcam Stream</h1>
+    <video id="webcamVideo" autoplay playsinline></video>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const videoElement = document.getElementById('webcamVideo');
+        let mediaRecorder;
+        let recordedBlobs = [];
+        let mimeType = 'video/mp4;codecs="avc1.640028"'; // Use valid MP4 codecs
+
+        async function startWebcamStream() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                videoElement.srcObject = stream;
+                  videoElement.onloadedmetadata = function(){
+                     videoElement.play();
+                    }
+
+                 stream.getVideoTracks()[0].onended = function() {
+                    console.log("stream ended")
+                 }
+
+                console.log("Webcam stream started");
+
+                 mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+
+                    mediaRecorder.ondataavailable = (event) => {
+                      if (event.data && event.data.size > 0) {
+                        console.log('sending video chunk');
+                          socket.emit('stream-video-chunk', event.data);
+                       }
+                    };
+                    mediaRecorder.start(100) // Split into 100ms chunks
+                  }
+            catch (error) {
+              console.error('Error accessing webcam:', error);
+            }
+        }
+        socket.on('connect', () => {
+            console.log('Connected to server:', socket.id)
+        })
+
+        startWebcamStream();
+    </script>
+</body>
+</html>

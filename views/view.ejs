@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Stream</title>
+    <style>
+        video {
+            width: 640px;
+            height: 480px;
+        }
+    </style>
+</head>
+<body>
+    <h1>View Stream</h1>
+    <video id="streamVideo" controls autoplay playsinline></video>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const videoElement = document.getElementById('streamVideo');
+        let mediaSource = new MediaSource();
+        videoElement.src = URL.createObjectURL(mediaSource);
+
+        let sourceBuffer;
+        let isSourceBufferReady = false;
+
+          mediaSource.addEventListener('sourceopen', function() {
+           console.log('MediaSource opened')
+            sourceBuffer = mediaSource.addSourceBuffer('video/mp4;codecs="avc1.640028"');
+             isSourceBufferReady = true;
+               sourceBuffer.addEventListener('error', (error) => {
+                console.error('SourceBuffer error:', error);
+            });
+            sourceBuffer.addEventListener('updateend', () => {
+               console.log('Buffer updated')
+            })
+        });
+
+        mediaSource.addEventListener('sourceended', () =>{
+            console.log('MediaSource Ended');
+        })
+
+
+         mediaSource.addEventListener('sourceclose', () =>{
+            console.log('MediaSource Closed');
+        })
+
+         socket.on('connect', () => {
+            console.log('Connected to server:', socket.id)
+        })
+
+        socket.on('stream-video-chunk', (chunk) => {
+
+            if(!isSourceBufferReady || !sourceBuffer || sourceBuffer.updating) {
+                 console.log('Source buffer is not ready or updating')
+               return;
+            }
+             sourceBuffer.appendBuffer(chunk);
+             console.log('receiving chunk',chunk);
+        });
+    </script>
+</body>
+</html>
